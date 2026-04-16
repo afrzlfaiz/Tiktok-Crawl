@@ -99,10 +99,6 @@ Dependency utama website:
 - Folder `WEBSITE/outputs` dipakai untuk file hasil download.
 - Untuk deploy demo di Render Free, project ini masih cocok untuk penggunaan ringan, tetapi tidak ditujukan untuk traffic besar atau beban scraping berat.
 
-## Repository
+## Demo Website
 
-Demo Website:
-
-```text
-https://tiktok-crawler-5k6k.onrender.com
-```
+Link: https://tiktok-crawler-5k6k.onrender.com
