@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Crawl | TikTok Scraper Studio{% endblock %}
+
+{% block content %}
+<section class="two-column">
+    <div class="panel">
+        <p class="section-kicker">Metode 3</p>
+        <h2>Crawl Keyword ke Komentar</h2>
+        <form method="post" class="tool-form" data-loading-title="Menjalankan crawl keyword" data-loading-message="Video sedang dicari lalu komentar tiap video sedang dikumpulkan. Ini biasanya proses paling lama.">
+            <label>
+                <span>Keyword pencarian</span>
+                <input type="text" name="keyword" value="{{ form_data.keyword }}" placeholder="contoh: kopi susu" required>
+            </label>
+            <label>
+                <span>Jumlah video</span>
+                <input type="number" name="max_videos" value="{{ form_data.max_videos }}" min="1" placeholder="5" required>
+            </label>
+            <label>
+                <span>Jumlah komentar per video</span>
+                <input type="number" name="comments_per_video" value="{{ form_data.comments_per_video }}" min="1" placeholder="10" required>
+            </label>
+            <button type="submit" data-submit-button data-default-label="Mulai Crawl" data-loading-label="Crawling...">Mulai Crawl</button>
+        </form>
+        {% if error %}
+        <div class="message error">{{ error }}</div>
+        {% endif %}
+    </div>
+
+    <div class="panel result-panel">
+        <div class="result-header">
+            <div>
+                <p class="section-kicker">Preview</p>
+                <h2>Dataset gabungan</h2>
+            </div>
+            {% if result %}
+            <a class="download-link" href="{{ url_for('download_file', filename=result.download_name) }}">Download Excel</a>
+            {% endif %}
+        </div>
+
+        {% if result %}
+        <div class="stats-grid">
+            <div class="stat-box"><span>Keyword</span><strong>{{ result.keyword }}</strong></div>
+            <div class="stat-box"><span>Video diproses</span><strong>{{ result.summary.processed_videos }}</strong></div>
+            <div class="stat-box"><span>Video dengan komentar</span><strong>{{ result.summary.videos_with_comments }}</strong></div>
+            <div class="stat-box"><span>Total komentar</span><strong>{{ result.summary.total_comments }}</strong></div>
+        </div>
+        <div class="table-wrap compact">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Video</th>
+                        <th>Username</th>
+                        <th>Komentar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.preview_rows %}
+                    <tr>
+                        <td>#{{ row.video_no }} / {{ row.video_id }}</td>
+                        <td>@{{ row.comment_username }}</td>
+                        <td>{{ row.comment_text }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <h3 class="subheading">Ringkasan per video</h3>
+        <div class="video-summary-grid">
+            {% for item in result.video_summaries %}
+            <article class="mini-stat">
+                <strong>#{{ item.video_no }} @{{ item.video_username }}</strong>
+                <span>{{ item.comment_count }} komentar</span>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">Hasil crawl akan tampil di sini setelah proses selesai.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

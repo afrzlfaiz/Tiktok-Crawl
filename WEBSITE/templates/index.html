@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | TikTok Scraper Studio{% endblock %}
+
+{% block content %}
+<section class="panel intro-panel">
+    <div>
+        <p class="section-kicker">Metode Yang Tersedia</p>
+        <h2>Pilih workflow sesuai input yang Anda punya.</h2>
+    </div>
+    <div class="card-grid">
+        <a class="feature-card" href="{{ url_for('comments_page') }}">
+            <span class="card-number">01</span>
+            <h3>Scraping Komentar</h3>
+            <p>Masukkan link TikTok atau video ID, pilih jumlah komentar, dan opsional ambil reply juga.</p>
+        </a>
+        <a class="feature-card" href="{{ url_for('videos_page') }}">
+            <span class="card-number">02</span>
+            <h3>Scraping Video</h3>
+            <p>Masukkan keyword dan jumlah video, lalu lihat daftar video hasil pencarian TikTok.</p>
+        </a>
+        <a class="feature-card" href="{{ url_for('crawl_page') }}">
+            <span class="card-number">03</span>
+            <h3>Crawl Komentar</h3>
+            <p>Masukkan keyword, tentukan jumlah video dan komentar per video, lalu dapatkan dataset gabungan.</p>
+        </a>
+    </div>
+</section>
+{% endblock %}

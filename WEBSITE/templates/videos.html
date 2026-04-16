@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Video | TikTok Scraper Studio{% endblock %}
+
+{% block content %}
+<section class="two-column">
+    <div class="panel">
+        <p class="section-kicker">Metode 2</p>
+        <h2>Scraping Video Berdasarkan Keyword</h2>
+        <form method="post" class="tool-form" data-loading-title="Mencari video TikTok" data-loading-message="Keyword sedang diproses dengan Playwright. Daftar video akan muncul setelah pencarian selesai.">
+            <label>
+                <span>Keyword pencarian</span>
+                <input type="text" name="keyword" value="{{ form_data.keyword }}" placeholder="contoh: skincare lokal" required>
+            </label>
+            <label>
+                <span>Jumlah video</span>
+                <input type="number" name="max_videos" value="{{ form_data.max_videos }}" min="1" placeholder="10" required>
+            </label>
+            <button type="submit" data-submit-button data-default-label="Cari Video" data-loading-label="Mencari...">Cari Video</button>
+        </form>
+        {% if error %}
+        <div class="message error">{{ error }}</div>
+        {% endif %}
+    </div>
+
+    <div class="panel result-panel">
+        <div class="result-header">
+            <div>
+                <p class="section-kicker">Preview</p>
+                <h2>Daftar video</h2>
+            </div>
+            {% if result %}
+            <a class="download-link" href="{{ url_for('download_file', filename=result.download_name) }}">Download JSON</a>
+            {% endif %}
+        </div>
+
+        {% if result %}
+        <div class="stats-grid">
+            <div class="stat-box"><span>Keyword</span><strong>{{ result.keyword }}</strong></div>
+            <div class="stat-box"><span>Diminta</span><strong>{{ result.summary.requested }}</strong></div>
+            <div class="stat-box"><span>Ditemukan</span><strong>{{ result.summary.total_found }}</strong></div>
+        </div>
+        <div class="video-list">
+            {% for video in result.preview_rows %}
+            <article class="video-card">
+                <div class="video-meta">
+                    <span>#{{ video.video_no }}</span>
+                    <strong>@{{ video.username }}</strong>
+                </div>
+                <p>{{ video.caption or 'Tanpa caption yang terdeteksi.' }}</p>
+                <a href="{{ video.url }}" target="_blank" rel="noopener noreferrer">Buka video</a>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">Daftar video akan muncul di sini setelah pencarian dijalankan.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

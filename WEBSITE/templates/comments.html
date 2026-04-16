@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Komentar | TikTok Scraper Studio{% endblock %}
+
+{% block content %}
+<section class="two-column">
+    <div class="panel">
+        <p class="section-kicker">Metode 1</p>
+        <h2>Scraping Komentar TikTok</h2>
+        <form method="post" class="tool-form" data-loading-title="Mengambil komentar TikTok" data-loading-message="Komentar dan reply sedang diambil. Proses ini bisa memakan waktu beberapa saat.">
+            <label>
+                <span>Link TikTok atau Video ID</span>
+                <input type="text" name="video_link_or_id" value="{{ form_data.video_link_or_id }}" placeholder="https://www.tiktok.com/... atau 7489..." required>
+            </label>
+            <label>
+                <span>Jumlah komentar</span>
+                <input type="number" name="total_comments" value="{{ form_data.total_comments }}" min="1" placeholder="20" required>
+            </label>
+            <fieldset class="radio-group">
+                <legend>Sertakan reply?</legend>
+                <label><input type="radio" name="include_replies" value="yes" {% if form_data.include_replies == 'yes' %}checked{% endif %}> Ya, ambil reply</label>
+                <label><input type="radio" name="include_replies" value="no" {% if form_data.include_replies == 'no' %}checked{% endif %}> Tidak, komentar utama saja</label>
+            </fieldset>
+            <button type="submit" data-submit-button data-default-label="Jalankan Scrape" data-loading-label="Memproses...">Jalankan Scrape</button>
+        </form>
+        {% if error %}
+        <div class="message error">{{ error }}</div>
+        {% endif %}
+    </div>
+
+    <div class="panel result-panel">
+        <div class="result-header">
+            <div>
+                <p class="section-kicker">Preview</p>
+                <h2>Hasil komentar</h2>
+            </div>
+            {% if result %}
+            <a class="download-link" href="{{ url_for('download_file', filename=result.download_name) }}">Download Excel</a>
+            {% endif %}
+        </div>
+
+        {% if result %}
+        <div class="stats-grid">
+            <div class="stat-box"><span>ID Video</span><strong>{{ result.aweme_id }}</strong></div>
+            <div class="stat-box"><span>Total item</span><strong>{{ result.summary.total_items }}</strong></div>
+            <div class="stat-box"><span>Komentar utama</span><strong>{{ result.summary.main_comments }}</strong></div>
+            <div class="stat-box"><span>Reply</span><strong>{{ result.summary.reply_comments }}</strong></div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Username</th>
+                        <th>Text</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.preview_rows %}
+                    <tr>
+                        <td>{{ row.type }}</td>
+                        <td>@{{ row.username }}</td>
+                        <td>{{ row.text }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">Hasil preview akan tampil di sini setelah form dijalankan.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

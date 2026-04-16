@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}TikTok Scraper UI{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+        <div class="loading-card" role="status" aria-live="polite" aria-atomic="true">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <p class="loading-kicker">Sedang Memproses</p>
+            <h2 id="loadingTitle">Scraping sedang berjalan</h2>
+            <p id="loadingMessage">Mohon tunggu. Browser dan request TikTok sedang diproses.</p>
+        </div>
+    </div>
+
+    <div class="page-shell">
+        <header class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">Flask Control Panel</p>
+                <h1>TikTok Scraper Studio</h1>
+                <p class="hero-text">Satu antarmuka untuk tiga metode scraping: komentar video, pencarian video, dan crawl keyword ke komentar.</p>
+            </div>
+            <nav class="main-nav">
+                <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('comments_page') }}" class="{% if request.endpoint == 'comments_page' %}active{% endif %}">Komentar</a>
+                <a href="{{ url_for('videos_page') }}" class="{% if request.endpoint == 'videos_page' %}active{% endif %}">Video</a>
+                <a href="{{ url_for('crawl_page') }}" class="{% if request.endpoint == 'crawl_page' %}active{% endif %}">Crawl</a>
+            </nav>
+        </header>
+
+        <main class="content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>
