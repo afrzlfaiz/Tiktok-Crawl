@@ -101,8 +101,8 @@ Dependency utama website:
 
 ## Repository
 
-Remote target:
+Demo Website:
 
 ```text
-https://github.com/afrzlfaiz/Tiktok-Crawl.git
+https://tiktok-crawler-5k6k.onrender.com
 ```
