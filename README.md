@@ -97,7 +97,6 @@ Dependency utama website:
 - Project ini memakai scraping langsung ke TikTok dan browser automation Playwright.
 - Hasil scrape bisa berubah tergantung response TikTok, challenge anti-bot, dan kondisi jaringan.
 - Folder `WEBSITE/outputs` dipakai untuk file hasil download.
-- Untuk deploy demo di Render Free, project ini masih cocok untuk penggunaan ringan, tetapi tidak ditujukan untuk traffic besar atau beban scraping berat.
 
 ## Demo Website
 
