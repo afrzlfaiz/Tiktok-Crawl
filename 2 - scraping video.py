@@ -1,145 +1,132 @@
-import asyncio
-from playwright.async_api import async_playwright
 import json
+import os
+import re
+import time
+import uuid
+from urllib.parse import urlencode
 
-async def search_tiktok(keyword: str, max_videos: int = 30):
-    """Search TikTok dengan selector berdasarkan HTML real"""
+import requests
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled"
+SIGNATURE_SERVER = os.environ.get("TIKTOK_SIGNATURE_URL", "http://localhost:8080")
+
+# ponytail: core pencarian di-copy di script 2, 3, dan WEBSITE/services/video_service.py
+# (sengaja, tanpa file client shared; naikkan ke modul bersama bila berubah >1 kali).
+
+
+def check_server_health() -> bool:
+    """True bila signature server siap dipakai."""
+    try:
+        return requests.get(f"{SIGNATURE_SERVER}/health", timeout=5).status_code == 200
+    except requests.RequestException:
+        return False
+
+
+def _search_tiktok(keyword: str, max_videos: int = 30, progress_callback=None):
+    """Cari video via POST /fetch di signature server (main.py) — tanpa browser lokal.
+
+    TikTok sesekali memberi hasil pengganti (feed fallback) ke sesi tamu;
+    halaman yang tak memuat token keyword di caption-nya diulang sampai asli.
+    """
+    videos = []
+    cursor = 0
+    search_id = f"{int(time.time() * 1000)}{uuid.uuid4().hex[:12].upper()}"
+    stopwords = {"yang", "dan", "dengan", "untuk", "dari", "ada"}
+    tokens = [
+        w.lower() for w in re.split(r"\W+", keyword)
+        if len(w) >= 3 and w.lower() not in stopwords
+    ]
+
+    while len(videos) < max_videos:
+        params = {
+            "aid": "1988",
+            "keyword": keyword,
+            "count": str(min(12, max_videos - len(videos))),
+            "cursor": str(cursor),
+            "search_source": "query",  # search_history memberi hasil tak relevan
+            "search_id": search_id,
+            "type": "1",  # wajib: filter video; tanpa ini TikTok beri hasil pengganti
+            "channel": "tiktok_web",
+        }
+        url = f"https://www.tiktok.com/api/search/general/full/?{urlencode(params)}"
+
+        items, data = [], {}
+        for retries in range(4):
+            if progress_callback:
+                progress_callback(
+                    f"Halaman {cursor // 12 + 1}..." + (f" (retry {retries})" if retries else "")
+                )
+            try:
+                response = requests.post(f"{SIGNATURE_SERVER}/fetch", json={"url": url}, timeout=60)
+                response.raise_for_status()
+                result = response.json()
+            except (requests.RequestException, ValueError) as error:
+                raise RuntimeError(
+                    f"Gagal memanggil signature server ({SIGNATURE_SERVER}): {error}. "
+                    "Jalankan dulu di repo tiktok-signature-python: python main.py"
+                ) from error
+            if result.get("status") != "ok":
+                raise RuntimeError(f"Signature server gagal: {result.get('message', result)}")
+
+            data = result.get("data") or {}
+            items = [
+                entry.get("item") for entry in (data.get("data") or [])
+                if isinstance(entry, dict) and isinstance(entry.get("item"), dict)
             ]
-        )
-        
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            viewport={"width": 1366, "height": 768},
-            locale="en-US",
-            timezone_id="Asia/Jakarta",
-            extra_http_headers={
-                "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
-                "Referer": "https://www.google.com/",
-                "DNT": "1"
-            }
-        )
-        
-        page = await context.new_page()
+            if items and tokens and not any(
+                token in " ".join((item.get("desc") or "") for item in items[:8]).lower()
+                for token in tokens
+            ):
+                continue  # hasil pengganti — retry
+            break
 
-        search_url = f"https://www.tiktok.com/search?q={keyword.replace(' ', '%20')}"
-        print(f"🔍 Membuka: {search_url}")
+        if not items:
+            break
 
-        await page.goto(search_url, wait_until="networkidle")
-        await page.wait_for_timeout(5000)
+        seen = {video["video_id"] for video in videos}
+        for item in items:
+            video_id = item.get("id")
+            author = item.get("author") or {}
+            username = author.get("uniqueId") if isinstance(author, dict) else None
+            if not video_id or not username:
+                continue
+            video_id = str(video_id)
+            if video_id in seen:
+                continue
+            seen.add(video_id)
+            videos.append({
+                "video_id": video_id,
+                "url": f"https://www.tiktok.com/@{username}/video/{video_id}",
+                "username": username,
+                "caption": (item.get("desc") or "").strip()[:200] or None,
+            })
 
-        # Scroll method: monitor grid items until target reached
-        print(f"📊 Memuat video (target: {max_videos} video)...")
-        
-        scroll_script = '''
-            () => {
-                const lastGrid = document.querySelector('[id^="grid-item-container-"]:last-child');
-                if (lastGrid) {
-                    lastGrid.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                }
-            }
-        '''
-        
-        max_attempts = 50
-        attempt = 0
-        last_video_count = 0
-        
-        while attempt < max_attempts:
-            attempt += 1
-            
-            # Scroll ke bawah
-            await page.evaluate(scroll_script)
-            await page.wait_for_timeout(2000)
-            
-            # Hitung video yang sudah dimuat
-            current_videos = await page.evaluate('''
-                () => {
-                    return document.querySelectorAll('a[href*="/video/"]').length;
-                }
-            ''')
-            
-            print(f"  📈 Attempt {attempt}: {current_videos} video ditemukan")
-            
-            # Stop jika sudah mencapai target atau tidak ada penambahan
-            if current_videos >= max_videos:
-                print(f"✅ Target {max_videos} video tercapai!")
-                break
-            
-            if current_videos == last_video_count and attempt > 5:
-                print(f"⚠️ Tidak ada penambahan video lagi (stop di {current_videos})")
-                break
-            
-            last_video_count = current_videos
+        cursor = data.get("cursor", cursor + len(items))
+        if not data.get("has_more", False):
+            break
+        time.sleep(1)
 
-        # Ambil data dengan selector yang benar
-        data = await page.evaluate('''
-            () => {
-                const videos = [];
+    return videos[:max_videos]
 
-                // Cari semua link video (berdasarkan struktur HTML yang diberikan)
-                const videoLinks = document.querySelectorAll('a[href*="/video/"]');
 
-                videoLinks.forEach((link, idx) => {
-                    const videoUrl = link.href;
-                    const videoId = videoUrl ? videoUrl.split('/video/')[1]?.split('?')[0] : null;
+def search_tiktok(keyword: str, max_videos: int = 30):
+    """Cari video via signature server — tanpa browser lokal."""
 
-                    // Cari username dari href atau dari parent
-                    let username = null;
-                    const hrefParts = videoUrl?.split('/');
-                    if (hrefParts && hrefParts.length > 3) {
-                        username = hrefParts[3]?.replace('@', '');
-                    }
+    def progress(message):
+        print(f"  📊 {message}")
 
-                    // Cari container parent
-                    const container = link.closest('[class*="DivWrapper"]') || link.parentElement;
+    videos = _search_tiktok(keyword, max_videos, progress_callback=progress)
+    for index, video in enumerate(videos, start=1):
+        video["no"] = index
+    return videos
 
-                    // Cari caption dari alt attribute img
-                    let caption = null;
-                    const img = container?.querySelector('img');
-                    if (img && img.alt) {
-                        caption = img.alt;
-                    }
 
-                    if (videoId && username) {
-                        videos.push({
-                            no: idx + 1,
-                            video_id: videoId,
-                            url: videoUrl,
-                            username: username,
-                            caption: caption ? caption.substring(0, 200) : null
-                        });
-                    }
-                });
-
-                // Hapus duplikat berdasarkan video_id
-                const unique = [];
-                const seen = new Set();
-                for (const video of videos) {
-                    if (!seen.has(video.video_id)) {
-                        seen.add(video.video_id);
-                        unique.push(video);
-                    }
-                }
-
-                return unique;
-            }
-        ''')
-
-        await browser.close()
-        return data
-
-async def main():
+def main():
     keyword = input("Masukkan keyword pencarian: ").strip()
 
     if not keyword:
         print("❌ Keyword tidak boleh kosong!")
         return
-    
+
     try:
         max_videos = int(input("Masukkan jumlah video yang diinginkan: ").strip())
         if max_videos <= 0:
@@ -149,10 +136,14 @@ async def main():
         print("❌ Jumlah video harus berupa angka!")
         return
 
+    if not check_server_health():
+        print("❌ Signature server tidak berjalan!")
+        print("💡 Jalankan dulu: cd tiktok-signature-python && python main.py")
+        return
+
     print(f"\n🎯 Mencari: {keyword} (target: {max_videos} video)\n")
-    results = await search_tiktok(keyword, max_videos)
-    
-    # Tampilkan hasil sesuai jumlah yang diminta
+    results = search_tiktok(keyword, max_videos)
+
     display_count = min(len(results), max_videos)
     if results:
         print(f"\n✅ Ditemukan {len(results)} video, menampilkan {display_count}:\n")
@@ -165,67 +156,14 @@ async def main():
             print()
     else:
         print("❌ Tidak ada video ditemukan")
-        print("\n💡 Tips: Coba buka browser manual dulu, mungkin kena challenge TikTok")
-    
-    # Simpan hasil
-    with open(f"tiktok_{keyword.replace(' ', '_')}.json", 'w', encoding='utf-8') as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-    
-    print(f"💾 Data disimpan ke tiktok_{keyword.replace(' ', '_')}.json")
+        return
 
-# Versi dengan visible browser (untuk debugging)
-async def search_tiktok_debug(keyword: str):
-    """Versi dengan browser yang terlihat untuk debugging"""
-    
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=False,
-            args=[
-                "--disable-blink-features=AutomationControlled"
-            ]
-        )
-        
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            viewport={"width": 1366, "height": 768},
-            locale="en-US",
-            timezone_id="Asia/Jakarta",
-            extra_http_headers={
-                "Accept-Language": "en-US,en;q=0.9,id;q=0.8",
-                "Referer": "https://www.google.com/",
-                "DNT": "1"
-            }
-        )
-        
-        page = await context.new_page()
-        
-        search_url = f"https://www.tiktok.com/search?q={keyword.replace(' ', '%20')}"
-        await page.goto(search_url)
-        
-        print("⏳ Tunggu 10 detik, lihat apakah muncul video...")
-        await page.wait_for_timeout(10000)
-        
-        # Screenshot untuk lihat hasilnya
-        await page.screenshot(path="tiktok_page.png")
-        print("📸 Screenshot disimpan ke tiktok_page.png")
-        
-        # Ambil data
-        data = await page.evaluate('''
-            () => {
-                const links = document.querySelectorAll('a[href*="/video/"]');
-                return Array.from(links).map(link => ({
-                    url: link.href,
-                    text: link.innerText
-                }));
-            }
-        ''')
-        
-        print(f"\nDitemukan {len(data)} link video")
-        
-        await browser.close()
-        return data
+    filename = f"tiktok_{keyword.replace(' ', '_')}.json"
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+
+    print(f"💾 Data disimpan ke {filename}")
+
 
 if __name__ == "__main__":
-    # Coba dengan debugging dulu jika gagal
-    # asyncio.run(search_tiktok_debug("mbg 6 juta hari"))
-    asyncio.run(main())
+    main()

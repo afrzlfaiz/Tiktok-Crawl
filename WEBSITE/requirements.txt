@@ -1,6 +1,5 @@
 Flask
 openpyxl
 pandas
-playwright
 requests
 gunicorn

@@ -13,7 +13,7 @@ Project ini berisi beberapa metode scraping TikTok dan sebuah antarmuka web Flas
 
 - `2 - scraping video.py`
   - Cari video TikTok berdasarkan keyword
-  - Menggunakan Playwright
+  - Via TikTok Signature Server (tanpa browser lokal)
   - Menyimpan hasil ke JSON
 
 - `3 - crawl komen.py`
@@ -61,13 +61,37 @@ UI juga menyediakan:
     `-- templates
 ```
 
+## Signature Server (wajib untuk pencarian video)
+
+Semua pencarian video (CLI & website) memakai signature server
+[tiktok-signature-python](https://github.com/afrzlfaiz/tiktok-signature-python).
+`main.py` di server menandatangani URL API TikTok (X-Bogus, msToken, dll.)
+dengan browser Playwright di sisi server; skrip di project ini tinggal
+memanggil `GET /health` dan `POST /fetch` lewat `requests` — tidak butuh
+Playwright/browser sendiri.
+
+> `1 - scraping komen.py` tidak butuh server ini; endpoint komentar masih
+> dipanggil langsung ke TikTok.
+
+Jalankan server dulu di terminal terpisah:
+
+```bash
+git clone https://github.com/afrzlfaiz/tiktok-signature-python.git
+cd tiktok-signature-python
+pip install -r requirements.txt
+python -m playwright install chromium   # sekali saja, untuk browser server
+python main.py                          # uvicorn di http://localhost:8080
+```
+
+Verifikasi: `curl localhost:8080/health` → `{"status":"ok",...}`.
+URL server bisa di-override via env `TIKTOK_SIGNATURE_URL`.
+
 ## Menjalankan Website
 
 Masuk ke folder `WEBSITE`, lalu install dependency:
 
 ```bash
 pip install -r requirements.txt
-python -m playwright install chromium
 ```
 
 Jalankan Flask app:
@@ -90,14 +114,16 @@ Dependency utama website:
 - requests
 - pandas
 - openpyxl
-- playwright
+
+Skrip CLI cukup: `requests`, `pandas`, `openpyxl`.
 
 ## Catatan Penting
 
-- Project ini memakai scraping langsung ke TikTok dan browser automation Playwright.
+- Pencarian video memakai signature server (`POST /fetch` di
+  tiktok-signature-python). Playwright hanya dijalankan di sisi server —
+  skrip crawl & website tidak perlu browser sendiri.
+- Endpoint komentar masih dipanggil langsung via `requests`; bila TikTok mulai
+  memblokirnya, komentar bisa dialihkan lewat `/fetch` server yang sama.
 - Hasil scrape bisa berubah tergantung response TikTok, challenge anti-bot, dan kondisi jaringan.
 - Folder `WEBSITE/outputs` dipakai untuk file hasil download.
 
-## Demo Website
-
-Link: 
