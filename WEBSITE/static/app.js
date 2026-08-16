@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const title = form.dataset.loadingTitle || "Scraping sedang berjalan";
             const message =
                 form.dataset.loadingMessage ||
-                "Mohon tunggu. Browser dan request TikTok sedang diproses.";
+                "Mohon tunggu. Request TikTok sedang diproses.";
 
             if (loadingTitle) {
                 loadingTitle.textContent = title;
