@@ -37,12 +37,12 @@ Project ini menyediakan alat scraping TikTok melalui **Script CLI** dan **Antarm
 
 ```mermaid
 graph TD
-    A[Pengguna CLI / Web UI] -->|Direct Request| B(TikTok API - Comments)
-    A -->|Payload Unsigned| C[Signature Server - Port 8080]
-    C -->|Playwright Chromium| C
-    C -->|Signed Request X-Bogus/msToken| D(TikTok API - Search)
-    D -->|Search Results| A
-    B -->|Comment Data| A
+    A["Pengguna CLI / Web UI"] -->|"Direct Request"| B["TikTok API - Comments"]
+    A -->|"Payload Unsigned"| C["Signature Server - Port 8080"]
+    C -->|"Playwright Chromium"| C
+    C -->|"Signed Request X-Bogus/msToken"| D["TikTok API - Search"]
+    D -->|"Search Results"| A
+    B -->|"Comment Data"| A
 ```
 
 ---
